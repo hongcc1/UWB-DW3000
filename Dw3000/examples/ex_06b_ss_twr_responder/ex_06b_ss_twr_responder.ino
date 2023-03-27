@@ -10,15 +10,15 @@ const uint8_t PIN_SS = 4; // spi select pin
 /* Default communication configuration. We use default non-STS DW mode. */
 static dwt_config_t config = {
         5,               /* Channel number. */
-        DWT_PLEN_128,    /* Preamble length. Used in TX only. */
+        DWT_PLEN_64,    /* Preamble length. Used in TX only. */
         DWT_PAC8,        /* Preamble acquisition chunk size. Used in RX only. */
         9,               /* TX preamble code. Used in TX only. */
         9,               /* RX preamble code. Used in RX only. */
-        1,               /* 0 to use standard 8 symbol SFD, 1 to use non-standard 8 symbol, 2 for non-standard 16 symbol SFD and 3 for 4z 8 symbol SDF type */
+        0,               /* 0 to use standard 8 symbol SFD, 1 to use non-standard 8 symbol, 2 for non-standard 16 symbol SFD and 3 for 4z 8 symbol SDF type */
         DWT_BR_6M8,      /* Data rate. */
         DWT_PHRMODE_STD, /* PHY header mode. */
         DWT_PHRRATE_STD, /* PHY header rate. */
-        (129 + 8 - 8),   /* SFD timeout (preamble length + 1 + SFD length - PAC size). Used in RX only. */
+        (65 + 8 - 8),   /* SFD timeout (preamble length + 1 + SFD length - PAC size). Used in RX only. */
         DWT_STS_MODE_OFF, /* STS disabled */
         DWT_STS_LEN_64,/* STS length see allowed values in Enum dwt_sts_lengths_e */
         DWT_PDOA_M0      /* PDOA mode off */
@@ -115,6 +115,9 @@ void setup() {
     dwt_setlnapamode(DWT_LNA_ENABLE | DWT_PA_ENABLE); 
 }
 
+// Declare display_buffer for printing to the UART
+char display_buffer[100];
+
 void loop() {
         /* Activate reception immediately. */
         dwt_rxenable(DWT_START_RX_IMMEDIATE);
@@ -163,6 +166,16 @@ void loop() {
                     dwt_writetxdata(sizeof(tx_resp_msg), tx_resp_msg, 0); /* Zero offset in TX buffer. */
                     dwt_writetxfctrl(sizeof(tx_resp_msg), 0, 1); /* Zero offset in TX buffer, ranging. */
                     ret = dwt_starttx(DWT_START_TX_DELAYED);
+
+                    /* Print poll_rx_ts, resp_tx_time and resp_tx_ts */
+                    snprintf((char*)display_buffer, sizeof(display_buffer), 
+                    "Poll RX ts: %llu, Resp TX ts: %llu, Resp TX time: %lu\r\n"
+                    , poll_rx_ts, resp_tx_ts, resp_tx_time);
+                    UART_puts(display_buffer);
+
+                    // Print if ret is DWT_SUCCESS or DWT_ERROR
+                    snprintf((char*)display_buffer, sizeof(display_buffer), "dwt_starttx: %d\r\n", ret);
+                    UART_puts(display_buffer);
 
                     /* If dwt_starttx() returns an error, abandon this ranging exchange and proceed to the next one. See NOTE 10 below. */
                     if (ret == DWT_SUCCESS)
